@@ -1,24 +1,29 @@
 package es.us.lsi.dad;
 
+import java.util.Calendar;		
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Random;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Promise;
-import io.vertx.core.http.HttpServer;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
 import io.vertx.ext.web.handler.BodyHandler;
 
 public class RestServer extends AbstractVerticle {
 
-	private Map<Integer, SensorEntity> sensors = new HashMap<Integer, SensorEntity>();
+	private Map<Integer, Pistas> pistas = new HashMap<Integer, Pistas>();
 	private Gson gson;
 
 	public void start(Promise<Void> startFuture) {
-		
+		// Creating some synthetic data
+		createSomeData(25);
+
 		// Instantiating a Gson serialize object using specific date format
 		gson = new GsonBuilder().setDateFormat("yyyy-MM-dd").create();
 
@@ -26,8 +31,7 @@ public class RestServer extends AbstractVerticle {
 		Router router = Router.router(vertx);
 
 		// Handling any server startup result
-		HttpServer httpServer = vertx.createHttpServer();
-		httpServer.requestHandler(router::handle).listen(80, result -> {
+		vertx.createHttpServer().requestHandler(router::handle).listen(8080, result -> {
 			if (result.succeeded()) {
 				startFuture.complete();
 			} else {
@@ -37,70 +41,112 @@ public class RestServer extends AbstractVerticle {
 
 		// Defining URI paths for each method in RESTful interface, including body
 		// handling by /api/users* or /api/users/*
-		router.route("/api*").handler(BodyHandler.create());
-
-		router.get("/api/sensors").handler(this::getSensors);
-		router.get("/api/sensors/:sensorid").handler(this::getSensorById);
-		router.post("/api/sensors").handler(this::addOneSensor);
-		router.delete("/api/sensors/:sensorid").handler(this::deleteOneSensor);
-		router.put("/api/sensors/:sensorid").handler(this::putOneSensor);
-
-		// Lanzar el nuevo verticle
-		// RestServer2 server2 = new RestServer2();
-		// server2.setHttpServer(httpServer);
-		// vertx.deployVerticle(server2);
-
+		router.route("/api/pistas*").handler(BodyHandler.create());
+		router.get("/api/pistas").handler(this::getAllWithParams);
+		router.get("/api/pistas/:pistasId").handler(this::getOne);
+		router.post("/api/pistas").handler(this::addOne);
+		router.delete("/api/pistas/:pistasId").handler(this::deleteOne);
+		router.put("/api/pistas/:pistasId").handler(this::putOne);
 	}
 
-	private void getSensors(RoutingContext routingContext) {
-		routingContext.response().putHeader("content-type", "application/json").setStatusCode(200)
-				.end(gson.toJson(sensors.values()));
+	@SuppressWarnings("unused")
+	private void getAll(RoutingContext routingContext) {
+		routingContext.response().putHeader("content-type", "application/json; charset=utf-8").setStatusCode(200)
+				.end(gson.toJson(pistas.values()));
 	}
 
-	private void getSensorById(RoutingContext routingContext) {
-		SensorEntity sensor = null;
-		int param = Integer.parseInt(routingContext.request().getParam("sensorid"));
-		if (sensors.containsKey(param)) {
-			sensor = sensors.get(param);
-			routingContext.response().putHeader("content-type", "application/json").setStatusCode(200)
-					.end(gson.toJson(sensor));
+	private void getAllWithParams(RoutingContext routingContext) {
+		final Integer termometroId =routingContext.queryParams().contains("termometroId") ? 
+				routingContext.queryParam("termometroId").get(0) : null;
+		
+		final String nombre = routingContext.queryParams().contains("nombre") ? 
+				routingContext.queryParam("nombre").get(0) : null;
+		final Integer longitud = routingContext.queryParams().contains("longitud") ? 
+				routingContext.queryParam("longitud").get(0) : null;
+		final Long fecha = routingContext.queryParams().contains("fecha") ? 
+				routingContext.queryParam("fecha").get(0) : null;
+		
+		final Boolean apertura = routingContext.queryParams().contains("apertura") ? 
+				routingContext.queryParam("apertura").get(0) : null;
+		
+		final Integer capacidadMax = routingContext.queryParams().contains("capacidadMax") ? 
+				routingContext.queryParam("capacidadMax").get(0) : null;
+		
+		final String dificultad = routingContext.queryParams().contains("dificultad") ? 
+				routingContext.queryParam("dificultad").get(0) : null;
+		
+		routingContext.response().putHeader("content-type", "application/json; charset=utf-8").setStatusCode(200)
+				.end(gson.toJson(pistas.values().stream().filter(elem -> {
+					boolean res = true;
+					res = res && termometroId != null ? elem.getTermometroId().equals(termometroId) : true;
+					res = res && nombre != null ? elem.getNombre().equals(nombre) : true;
+					res = res && longitud != null ? elem.getLongitud().equals(longitud) : true;
+					res = res && fecha != null ? elem.getFecha().equals(fecha) : true;
+					res = res && apertura != null ? elem.getApertura().equals(apertura) : true;
+					res = res && capacidadMax != null ? elem.getCapacidadMax().equals(capacidadMax) : true;
+					res = res && dificultad != null ? elem.getDificultad().equals(dificultad) : true;
+					
+					
+					
+					return res;
+				}).collect(Collectors.toList())));
+	}
+
+	private void getOne(RoutingContext routingContext) {
+		int id = Integer.parseInt(routingContext.request().getParam("pistasId"));
+		if (pistas.containsKey(id)) {
+			Pistas ds = pistas.get(id);
+			routingContext.response().putHeader("content-type", "application/json; charset=utf-8").setStatusCode(200)
+					.end(gson.toJson(ds));
 		} else {
-			routingContext.response().putHeader("content-type", "application/json").setStatusCode(300).end();
+			routingContext.response().putHeader("content-type", "application/json; charset=utf-8").setStatusCode(204)
+					.end();
 		}
 	}
-	
-	private void addOneSensor(RoutingContext routingContext) {
-		final SensorEntity sensor = gson.fromJson(routingContext.getBodyAsString(), SensorEntity.class);
-		sensors.put(sensor.getIdSensor(), sensor);
+
+	private void addOne(RoutingContext routingContext) {
+		final Pistas pista = gson.fromJson(routingContext.getBodyAsString(), Pistas.class);
+		pistas.put(pista.getPistasId(), pista);
 		routingContext.response().setStatusCode(201).putHeader("content-type", "application/json; charset=utf-8")
-				.end(gson.toJson(sensor));
+				.end(gson.toJson(pista));
 	}
 
-	private void deleteOneSensor(RoutingContext routingContext) {
-		int id = Integer.parseInt(routingContext.request().getParam("sensorid"));
-		if (sensors.containsKey(id)) {
-			SensorEntity sensor = sensors.get(id);
-			sensors.remove(id);
+	private void deleteOne(RoutingContext routingContext) {
+		int id = Integer.parseInt(routingContext.request().getParam("pistasId"));
+		if (pistas.containsKey(id)) {
+			Pistas pista = pistas.get(id);
+			pistas.remove(id);
 			routingContext.response().setStatusCode(200).putHeader("content-type", "application/json; charset=utf-8")
-					.end(gson.toJson(sensor));
+					.end(gson.toJson(pista));
 		} else {
 			routingContext.response().setStatusCode(204).putHeader("content-type", "application/json; charset=utf-8")
 					.end();
 		}
 	}
 
-	private void putOneSensor(RoutingContext routingContext) {
-		int id = Integer.parseInt(routingContext.request().getParam("sensorid"));
-		SensorEntity ds = sensors.get(id);
-		final SensorEntity element = gson.fromJson(routingContext.getBodyAsString(), SensorEntity.class);
-		ds.setData(element.getData());
-		ds.setIdSensor(element.getIdSensor());
-		ds.setSensor(element.getSensor());
-		ds.setTime(element.getTime());
-		sensors.put(ds.getIdSensor(), ds);
+	private void putOne(RoutingContext routingContext) {
+		int id = Integer.parseInt(routingContext.request().getParam("pistasId"));
+		Pistas ds = pistas.get(id);
+		final Pistas element = gson.fromJson(routingContext.getBodyAsString(), Pistas.class);
+		ds.setTermometroId(element.getTermometroId());
+		ds.setNombre(element.getNombre());
+		ds.setLongitud(element.getLongitud());
+		ds.setFecha(element.getFecha());
+		ds.setApertura(element.getApertura());
+		pistas.put(ds.getPistasId(), ds);
 		routingContext.response().setStatusCode(201).putHeader("content-type", "application/json; charset=utf-8")
 				.end(gson.toJson(element));
 	}
-
+// Cambiar
+	private void createSomeData(int number) {
+		Random rnd = new Random();
+		IntStream.range(0, number).forEach(elem -> {
+			int id = rnd.nextInt();
+			int term_id= rnd.nextInt();
+			Boolean apertura= rnd.nextBoolean();
+			pistas.put(id, new Pistas(id, term_id + id, "Rio" + id, 12000 + id,
+					 20 + id, apertura , 1000 + id, "Verde" + id));
+		});
+	}
 
 }
