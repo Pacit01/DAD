@@ -3,9 +3,15 @@
 #include <ESP8266WiFi.h>
 #include <DHT.h>
 #include <DHT_U.h>
+#include <Adafruit_Sensor.h>
+#define DHTPIN 2     // Digital pin connected to the DHT sensor 
+#define DHTTYPE    DHT22     // DHT 22 (AM2302)
 
 int test_delay = 1000; //so we don't spam the API
 boolean describe_tests = true;
+DHT_Unified dht(DHTPIN, DHTTYPE);
+
+uint32_t delayMS;
 
 RestClient client = RestClient("192.168.56.1", 80);//ip modificar
 
@@ -198,7 +204,7 @@ void GET_tests()
 
 void POST_tests()
 {
-  String post_body = serializeBody(millis(), "dht", millis(), random(-20, 50)/10, random(0, 100)/10);
+  String post_body = serializeBody( 1, random(-20, 50)/10, random(0, 100)/10);
   describe("Test POST with path and body and response");
   test_status(client.post("/api/sensors", post_body.c_str(), &response));
   test_response();
