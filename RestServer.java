@@ -1,4 +1,4 @@
-package es.us.lsi.dad;
+package vertx;
 
 import java.util.Calendar;		
 import java.util.HashMap;
@@ -145,7 +145,7 @@ public class RestServer extends AbstractVerticle {
 			int term_id= rnd.nextInt();
 			Boolean apertura= rnd.nextBoolean();
 			pistas.put(id, new Pistas(id, term_id + id, "Rio" + id, 12000 + id,
-					 20 + id, apertura , 1000 + id, "Verde" + id));
+					 (long) (20 + id), apertura , 1000 + id, "Verde" + id));
 		});
 	}
 

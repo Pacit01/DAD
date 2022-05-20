@@ -1,10 +1,11 @@
-package es.us.lsi.dad;
+package vertx;
 
 import java.util.HashMap;
 import java.util.Map;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-	
+
+import clases.Termometro;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Promise;
 import io.vertx.core.http.HttpServer;
@@ -13,16 +14,26 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
 import io.vertx.ext.web.handler.BodyHandler;
+import io.vertx.mysqlclient.MySQLConnectOptions;
+import io.vertx.mysqlclient.MySQLPool;
+import io.vertx.sqlclient.PoolOptions;
 import io.vertx.sqlclient.Row;
 import io.vertx.sqlclient.RowSet;
 
 public class RestServerTermometro extends AbstractVerticle {
-
+	
+	MySQLPool mySqlClient;
 	private Map<Integer, Termometro> sensors = new HashMap<Integer, Termometro>();
 	private Gson gson;
 
 	public void start(Promise<Void> startFuture) {
+		
+		MySQLConnectOptions connectOptions = new MySQLConnectOptions().setPort(3306).setHost("localhost")
+				.setDatabase("pistaSki").setUser("root").setPassword("rootroot");
 
+		PoolOptions poolOptions = new PoolOptions().setMaxSize(2);
+
+		mySqlClient = MySQLPool.pool(vertx, connectOptions, poolOptions);
 		// Defining the router object
 		Router router = Router.router(vertx);
 
