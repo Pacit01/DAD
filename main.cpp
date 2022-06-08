@@ -21,8 +21,9 @@ uint32_t delayMS;
 
 double temperature = 0.0;
 double humidity = 0.0;
+//long timestamp = millis(); 
 //int topic_termometro = 1;
-RestClient client2 = RestClient("192.168.43.64", 8080);//ip modificar
+RestClient client2 = RestClient("192.168.43.66", 8080);//ip modificar
 
 
 
@@ -58,6 +59,7 @@ String serializeBody(int termometroId, int pistaId, double temperatura, double h
   doc["pistaId"]= pistaId;
   doc["temperatura"]= temperatura;
   doc["humedad"]= humedad;
+  
  
 
   // Generate the minified JSON and send it to the Serial port.
@@ -117,7 +119,8 @@ void deserializeBody(String responseJson){
     const char *termometroId = doc["termometroId"];
     const char *pistaId = doc["pistaId"];
     const char *temperatura = doc["termperatura"];
-    const char *humedad = doc["humedad"];
+    const char *humedad = doc["humedad"]; 
+    //const char *timestamp = doc["timestamp"];
     
 
     // Print values.
@@ -125,7 +128,7 @@ void deserializeBody(String responseJson){
     Serial.println(pistaId);
     Serial.println(temperatura);
     Serial.println(humedad);
-    
+    //Serial.println(timestamp); 
   }
 }
 
@@ -145,7 +148,7 @@ void describe(char *description)
 void GET_tests()
 {
   describe("Test GET with path");
-  test_status(client2.get("/api/termometro/termometroId", &response));
+  test_status(client2.get("/api/termometro", &response));
 
   test_response();
 
@@ -154,7 +157,7 @@ void GET_tests()
 void POST_tests()
 {
   String post_body = serializeBody( 1,1,  temperature, humidity);
-  test_status(client2.post("/api/termometro/termometroId", post_body.c_str(), &response));
+  test_status(client2.post("/api/termometro", post_body.c_str(), &response));
   test_response();
 }
 
@@ -188,8 +191,8 @@ void PUT_tests()
   client2.setHeader("X-Test-Header2: two");
   test_status(client2.put("/data-headers/1241231", post_body.c_str(), &response));
   test_response();
-}*/
-/*
+}
+
 void DELETE_tests()
 {
   int temp = 38;
@@ -242,11 +245,11 @@ void callback(char* topic , byte* payload, unsigned int length) {
   Serial.println();
  Serial.println((char)payload[0]);
   if ((char)payload[0] == '1') {
-    digitalWrite(4, HIGH); //D2
-    POST_tests();
+    digitalWrite(4,HIGH); //D2
+    
   } else {
     digitalWrite(4, LOW);  // Turn the LED off by making the voltage HIGH
-    POST_tests();
+   
   }
  
 }
@@ -260,6 +263,7 @@ void reconnect() {
       Serial.println("connected");
       //client.publish("topic_1", "Enviando el primer mensaje");
       client.subscribe("topic_termometro");
+    
     } else {
       Serial.println("failed, rc=");
       Serial.print(client.state());
@@ -354,7 +358,7 @@ void setup()
 
   //set up mqtt & esp
   
-  pinMode(BUILTIN_LED, OUTPUT);
+  pinMode(4, OUTPUT);
   //Serial.begin(115200);
   setup_wifi();
   client.setServer(mqtt_server, 1883);
@@ -366,6 +370,8 @@ void loop()
   delay(5000);
   GET_tests();
   POST_tests();
+  client.setCallback(callback);
+  //digitalWrite(4, HIGH);
  // PUT_tests();
   //DELETE_tests();
   // Delay between measurements.Sensor dht22
@@ -405,8 +411,9 @@ void loop()
     lastMsg = now;
    // Serial.println("Publish message: ");
    // Serial.println(msg);
-   //client.publish("topic_1", msg);
+    //client.publish("topic_1", msg);
     client.subscribe("topic_termometro");
+    
   }
   
 }
